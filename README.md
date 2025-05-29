@@ -8,7 +8,7 @@ It showcases scalable frontend architecture, thoughtful UX, reusable component d
 
 ## Demo Video
 
-👉 Watch the demo walkthrough
+👉 [Watch the demo walkthrough](https://drive.google.com/file/d/1IqvB2nDcNYkV5K3oZjlA4EwE2RCgygsd/view?usp=sharing)
 
 ## UI/UX
 
