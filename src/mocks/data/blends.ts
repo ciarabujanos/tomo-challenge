@@ -1,4 +1,4 @@
-export const data = () => [
+export const data = [
   {
     id: 0,
     name: 'Tasty Blend',

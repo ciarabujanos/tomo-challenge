@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import Home from './index';
+import Home from './Home';
 import { MemoryRouter } from 'react-router-dom';
 
 test('renders home page', async () => {
@@ -13,7 +13,7 @@ test('renders home page', async () => {
 
   expect(
     screen.getByRole('heading', {
-      name: /spice list/i,
+      name: /spice catalog/i,
     }),
   ).toBeInTheDocument();
   expect(
