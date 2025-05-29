@@ -28,7 +28,7 @@ It showcases scalable frontend architecture, thoughtful UX, reusable component d
 ## Accessibility
 
 - Semantic HTML with proper heading levels
-- Added aria-live, role="alert", and keyboard-friendly interactions
+- Added aria-label, role="alert", and keyboard-friendly interactions
 - Focus states and visible labels
 - Accessible modal and error banner components
 
