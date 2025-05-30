@@ -1,8 +1,8 @@
 # Spice Blend Challenge
 
-# Overview
+## Overview
 
-This challenge involved building a responsive, accessible frontend UI to manage "spices" and "blends" with support for nested relationships, search, and detail pages. The project is implemented using React, TypeScript, Tailwind CSS, and React Router.
+This challenge involved building a responsive, accessible frontend UI to manage "spices" and "blends" with support for nested relationships, search, adding a new blend, and detail pages. The project is implemented using React, TypeScript, Tailwind CSS, and React Router.
 
 It showcases scalable frontend architecture, thoughtful UX, reusable component design, and a recursive algorithm for handling nested blends.
 
@@ -24,6 +24,7 @@ It showcases scalable frontend architecture, thoughtful UX, reusable component d
 - Recursive utility function getAllSpicesFromBlend() to gather all direct and nested spices in a blend
 - Filters out duplicates and handles arbitrarily nested blend structures
 - Uses React Router location.state to share state between pages and avoid redundant API calls
+- Ability to add and view a new blend
 
 ## Accessibility
 
