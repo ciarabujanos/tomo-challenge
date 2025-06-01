@@ -1,10 +1,10 @@
 import React, { useState, Dispatch, SetStateAction } from 'react';
 import type { Blend, Spice } from '../../types';
 import MultiSelect, { OptionType } from '../MultiSelect/MultiSelect';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface PropTypes {
   setModalOpen: Dispatch<SetStateAction<boolean>>;
-  fetchBlends: () => void;
   blends: Blend[];
   spices: Spice[];
 }
@@ -13,8 +13,8 @@ const AddBlendsForm: React.FunctionComponent<PropTypes> = ({
   blends,
   spices,
   setModalOpen,
-  fetchBlends,
 }) => {
+  const queryClient = useQueryClient();
   const [description, setDescription] = useState<string>('');
   const [name, setName] = useState<string>('');
   const [selectedBlendOptions, setSelectedBlendOptions] = useState<
@@ -26,6 +26,7 @@ const AddBlendsForm: React.FunctionComponent<PropTypes> = ({
 
   const handleSubmitAddBlend = async (
     name: string,
+    description: string,
     blends: number[],
     spices: number[],
   ) => {
@@ -35,6 +36,7 @@ const AddBlendsForm: React.FunctionComponent<PropTypes> = ({
       blends,
       spices,
     };
+
     try {
       const config = {
         method: 'POST',
@@ -49,7 +51,10 @@ const AddBlendsForm: React.FunctionComponent<PropTypes> = ({
         console.error('Failed to add blend:', response.statusText);
         return;
       }
-      await fetchBlends();
+      const newBlend = await response.json();
+      queryClient.setQueryData<Blend[]>(['blends'], (oldBlends = []) => {
+        return [...oldBlends, newBlend];
+      });
       setModalOpen(false);
     } catch (error) {
       console.error('Network or unexpected error:', error);
@@ -118,6 +123,7 @@ const AddBlendsForm: React.FunctionComponent<PropTypes> = ({
           onClick={() => {
             handleSubmitAddBlend(
               name,
+              description,
               selectedBlendOptions.map((opt) => Number(opt.value)),
               selectedSpiceOptions.map((opt) => Number(opt.value)),
             );

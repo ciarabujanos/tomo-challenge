@@ -1,99 +1,102 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import type { Spice, Blend } from '../../types';
-import { useLocation } from 'react-router-dom';
-import Loader from '../../components/SpinnerLoader/SpinnerLoader';
+import { useQuery } from '@tanstack/react-query';
 import ErrorBanner from '../../components/ErrorBanner/ErrorBanner';
+import { fetchBlends, fetchSpices } from '../../queries';
+import Loader from '../../components/SpinnerLoader/SpinnerLoader';
 import DetailCard from '../../components/DetailsCard/DetailsCard';
+
+const getAllSpicesFromBlend = (
+  blend: Blend,
+  allBlends: Blend[],
+  allSpices: Spice[],
+  visited = new Set<number>(),
+): Spice[] => {
+  // check that each blend is visited once
+  if (visited.has(blend.id)) return [];
+  visited.add(blend.id);
+
+  const directSpices = blend.spices
+    .map((spiceId) => allSpices.find((s) => s.id === spiceId))
+    .filter((spice) => spice !== undefined);
+
+  const nestedSpices = blend.blends.reduce<Spice[]>(
+    (acc: Spice[], childBlendId: number) => {
+      const childBlend = allBlends.find((b: Blend) => b.id === childBlendId);
+      if (childBlend) {
+        acc.push(
+          ...getAllSpicesFromBlend(childBlend, allBlends, allSpices, visited),
+        );
+      }
+      return acc;
+    },
+    [],
+  );
+
+  // Remove duplicates
+  const seen = new Set<number>();
+  const uniqueSpices = [...directSpices, ...nestedSpices].filter((spice) => {
+    if (seen.has(spice.id)) {
+      return false;
+    }
+    seen.add(spice.id);
+    return true;
+  });
+
+  return uniqueSpices;
+};
 
 const BlendDetailPage = () => {
   const { id } = useParams();
-  const [blend, setBlend] = useState<Blend>();
-  const location = useLocation();
-  const spiceList = location.state?.spices as Spice[];
-  const blendList = location.state?.blends as Blend[];
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [allSpices, setAllSpices] = useState<Spice[]>([]);
+  const {
+    data: spiceList = [],
+    isLoading: loadingSpices,
+    error: spiceError,
+  } = useQuery({
+    queryKey: ['spices'],
+    queryFn: fetchSpices,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
 
-  const getAllSpicesFromBlend = (
-    blend: Blend,
-    allBlends: Blend[],
-    allSpices: Spice[],
-    visited = new Set<number>(),
-  ): Spice[] => {
-    // check that each blend is visited once
-    if (visited.has(blend.id)) return [];
-    visited.add(blend.id);
-
-    const directSpices = blend.spices
-      .map((spiceId) => allSpices.find((s) => s.id === spiceId))
-      .filter((spice) => spice !== undefined);
-
-    const nestedSpices = blend.blends.reduce<Spice[]>(
-      (acc: Spice[], childBlendId: number) => {
-        const childBlend = allBlends.find((b: Blend) => b.id === childBlendId);
-        if (childBlend) {
-          acc.push(
-            ...getAllSpicesFromBlend(childBlend, allBlends, allSpices, visited),
-          );
-        }
-        return acc;
-      },
-      [],
-    );
-
-    // Remove duplicates
-    const seen = new Set<number>();
-    const uniqueSpices = [...directSpices, ...nestedSpices].filter((spice) => {
-      if (seen.has(spice.id)) {
-        return false;
-      }
-      seen.add(spice.id);
-      return true;
-    });
-
-    return uniqueSpices;
-  };
+  const {
+    data: blendList = [],
+    isLoading: loadingBlends,
+    error: blendError,
+  } = useQuery({
+    queryKey: ['blends'],
+    queryFn: fetchBlends,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
 
   const simulateError = false;
 
-  const fetchBlend = async () => {
-    try {
-      setLoading(true);
-      // added the set timeout for demo purposes
-      const delay = new Promise((res) => setTimeout(res, 500));
+  const {
+    data: blend,
+    isLoading: loadingBlend,
+    error: blendErrorById,
+  } = useQuery<Blend>({
+    queryKey: ['blend', id],
+    queryFn: async () => {
+      const res = await fetch(`/api/v1/blends/${id}`);
+      await new Promise((res) => setTimeout(res, 500));
+      if (simulateError || !res.ok) throw new Error('Failed to fetch blend');
+      return res.json();
+    },
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    enabled: !!id,
+  });
 
-      const fetchRequest = (async () => {
-        const res = await fetch(`/api/v1/blends/${id}`);
-        if (simulateError || !res.ok)
-          throw new Error(`HTTP error! Status: ${res.status}`);
+  const allSpices = useMemo(() => {
+    if (!blend || !blendList.length || !spiceList.length) return [];
 
-        const data = await res.json();
-        setBlend(data);
+    return getAllSpicesFromBlend(blend, blendList, spiceList);
+  }, [blend, blendList, spiceList]);
 
-        if (spiceList && blendList) {
-          const resolvedSpices = getAllSpicesFromBlend(
-            data,
-            blendList,
-            spiceList,
-          );
-          setAllSpices(resolvedSpices);
-        }
-      })();
-
-      await Promise.all([delay, fetchRequest]);
-    } catch (err) {
-      console.error('Fetch Blend Error:', err);
-      setError(err instanceof Error ? err.message : 'Unexpected error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchBlend();
-  }, [id]);
+  const isLoading = loadingSpices || loadingBlends || loadingBlend;
 
   const directSpices = allSpices.filter((spice) =>
     blend?.spices.includes(spice.id),
@@ -103,8 +106,21 @@ const BlendDetailPage = () => {
     (spice) => !blend?.spices.includes(spice.id),
   );
 
-  if (loading) return <Loader />;
-  if (error) return <ErrorBanner error={error} />;
+  if (isLoading) return <Loader />;
+
+  const error = (spiceError || blendError || blendErrorById) as
+    | Error
+    | undefined;
+  if (error)
+    return (
+      <ErrorBanner
+        error={
+          (spiceError as Error)?.message ||
+          (blendError as Error)?.message ||
+          (blendErrorById as Error)?.message
+        }
+      />
+    );
 
   return (
     <DetailCard title="Blend Details">

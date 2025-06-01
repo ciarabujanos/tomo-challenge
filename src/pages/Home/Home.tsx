@@ -1,31 +1,40 @@
-import type { Blend, Spice } from '../../types';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import AddBlendsForm from '../../components/AddBlendsForm/AddBlendsForm';
 import CatalogCard from '../../components/CatalogCard/CatalogCard';
-
+import { useMatch, NavLink } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import Spinner from '../../components/SpinnerLoader/SpinnerLoader';
+import ErrorBanner from '../../components/ErrorBanner/ErrorBanner';
+import BackButton from '../../components/BackButton/BackButton';
+import { fetchBlends, fetchSpices } from '../../queries';
 function Home() {
-  const [spices, setSpices] = useState<Spice[]>([]);
-  const [blends, setBlends] = useState<Blend[]>([]);
   const [searchString, updateSearchString] = useState('');
   const [modalOpen, setModalOpen] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<string>('spices');
 
-  const fetchBlends = async () => {
-    const blendsResponse = await fetch('/api/v1/blends');
-    const blends = await blendsResponse.json();
-    setBlends(blends);
-  };
+  const isBlendsTab = useMatch('/blends');
+  const activeTab = isBlendsTab ? 'blends' : 'spices';
 
-  useEffect(() => {
-    async function fetchSpices() {
-      const spicesResponse = await fetch('/api/v1/spices');
-      const spices = await spicesResponse.json();
-      setSpices(spices);
-    }
+  const {
+    data: spices = [],
+    isLoading: loadingSpices,
+    error: spiceError,
+  } = useQuery({
+    queryKey: ['spices'],
+    queryFn: fetchSpices,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
 
-    fetchSpices();
-    fetchBlends();
-  }, []);
+  const {
+    data: blends = [],
+    isLoading: loadingBlends,
+    error: blendError,
+  } = useQuery({
+    queryKey: ['blends'],
+    queryFn: fetchBlends,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
 
   const handleCreateBlendModal = () => {
     setModalOpen(true);
@@ -38,6 +47,14 @@ function Home() {
   const filteredBlends = blends.filter((blend) =>
     blend.name.toLowerCase().includes(searchString.toLowerCase()),
   );
+
+  if (loadingSpices || loadingBlends) return <Spinner />;
+  if (spiceError || blendError)
+    return (
+      <ErrorBanner
+        error={(spiceError as Error)?.message || (blendError as Error)?.message}
+      />
+    );
 
   return (
     <div className="m-4">
@@ -54,29 +71,37 @@ function Home() {
           className="sm:w-1/2 p-2 mb-6 border border-gray-300 rounded shadow-sm"
         />
       </div>
+
       <div style={{ textAlign: 'center' }}>
         {/* Tab Navigation */}
-        <div className="flex justify-end mb-4 space-x-2">
-          <button
-            className={`px-4 py-2 rounded ${
-              activeTab === 'spices' ? 'bg-green-700 text-white' : 'bg-gray-200'
-            }`}
-            onClick={() => setActiveTab('spices')}
-          >
-            Spices
-          </button>
-          <button
-            className={`px-4 py-2 rounded ${
-              activeTab === 'blends' ? 'bg-green-700 text-white' : 'bg-gray-200'
-            }`}
-            onClick={() => setActiveTab('blends')}
-          >
-            Blends
-          </button>
+        <div className="flex justify-between mb-10 space-x-2">
+          <div>{activeTab === 'blends' && <BackButton />}</div>
+          <div className="flex space-x-2">
+            <NavLink
+              to="/"
+              className={`px-4 py-2 rounded ${
+                activeTab === 'spices'
+                  ? 'bg-green-700 text-white'
+                  : 'bg-gray-200'
+              }`}
+            >
+              Spices
+            </NavLink>
+            <NavLink
+              to="/blends"
+              className={`px-4 py-2 rounded ${
+                activeTab === 'blends'
+                  ? 'bg-green-700 text-white'
+                  : 'bg-gray-200'
+              }`}
+            >
+              Blends
+            </NavLink>
+          </div>
         </div>
 
         {/* Tab Content */}
-        {activeTab === 'spices' ? (
+        {!isBlendsTab ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {filteredSpices.length > 0 ? (
               filteredSpices.map((spice) => (
@@ -110,7 +135,6 @@ function Home() {
                       key={blend.id}
                       name={blend.name}
                       to={`/blends/${blend.id}`}
-                      state={{ spices, blends }}
                     />
                   </div>
                 ))
@@ -129,7 +153,6 @@ function Home() {
           blends={blends}
           spices={spices}
           setModalOpen={setModalOpen}
-          fetchBlends={fetchBlends}
         />
       )}
     </div>

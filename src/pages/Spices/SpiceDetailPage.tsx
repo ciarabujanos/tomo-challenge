@@ -1,46 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import DetailCard from '../../components/DetailsCard/DetailsCard';
 import Loader from '../../components/SpinnerLoader/SpinnerLoader';
 import ErrorBanner from '../../components/ErrorBanner/ErrorBanner';
 import { useParams } from 'react-router-dom';
-import type { Spice } from '../../types';
+import { fetchSpiceById } from '../../queries';
 
 const SpiceDetailPage = () => {
   const { id } = useParams();
-  const [spice, setSpice] = useState<Spice>();
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const simulateError = false;
+  const {
+    data: spice,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['spice', id],
+    queryFn: () => fetchSpiceById(id!),
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    enabled: !!id,
+  });
 
-  useEffect(() => {
-    async function fetchSpice() {
-      try {
-        setLoading(true);
-        // added the set timeout for demo purposes
-        const delay = new Promise((res) => setTimeout(res, 500));
-
-        const fetchRequest = (async () => {
-          const res = await fetch(`/api/v1/spices/${id}`);
-          if (simulateError || !res.ok)
-            throw new Error(`HTTP error! Status: ${res.status}`);
-          const data = await res.json();
-          setSpice(data);
-        })();
-
-        await Promise.all([delay, fetchRequest]);
-      } catch (err) {
-        console.error('Error', err);
-        setError(err instanceof Error ? err.message : 'Unexpected error');
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchSpice();
-  }, [id]);
-
-  if (loading) return <Loader />;
-  if (error) return <ErrorBanner error={error} />;
+  if (isLoading) return <Loader />;
+  if (error) return <ErrorBanner error={(error as Error).message} />;
 
   return (
     <DetailCard title="Spice Details">
