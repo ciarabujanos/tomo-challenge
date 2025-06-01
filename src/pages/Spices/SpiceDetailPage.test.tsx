@@ -1,12 +1,13 @@
 import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import SpiceDetailPage from './SpiceDetailPage';
+import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('react-router-dom', async () => {
   const originalRouter = await vi.importActual('react-router-dom');
   return {
     ...originalRouter,
     useParams: () => ({ id: '0' }),
-    useLocation: () => ({ state: { spices: [] } }),
   };
 });
 
@@ -30,9 +31,24 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-test('renders spice detail page', async () => {
-  render(<SpiceDetailPage />);
+const renderWithClient = (ui: React.ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
 
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  );
+};
+
+test('renders spice detail page', async () => {
+  renderWithClient(<SpiceDetailPage />);
   // Spice Name should be visible
   expect(await screen.findByText(/spice name/i)).toBeInTheDocument();
   // Should see cilantro in the spice list

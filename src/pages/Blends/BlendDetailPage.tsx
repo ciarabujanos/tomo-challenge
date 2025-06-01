@@ -9,42 +9,41 @@ import DetailCard from '../../components/DetailsCard/DetailsCard';
 
 const getAllSpicesFromBlend = (
   blend: Blend,
-  allBlends: Blend[],
-  allSpices: Spice[],
+  blendListMapByID: Map<number, Blend>,
+  spiceListMapByID: Map<number, Spice>,
   visited = new Set<number>(),
 ): Spice[] => {
-  // check that each blend is visited once
   if (visited.has(blend.id)) return [];
   visited.add(blend.id);
 
-  const directSpices = blend.spices
-    .map((spiceId) => allSpices.find((s) => s.id === spiceId))
-    .filter((spice) => spice !== undefined);
-
-  const nestedSpices = blend.blends.reduce<Spice[]>(
-    (acc: Spice[], childBlendId: number) => {
-      const childBlend = allBlends.find((b: Blend) => b.id === childBlendId);
-      if (childBlend) {
-        acc.push(
-          ...getAllSpicesFromBlend(childBlend, allBlends, allSpices, visited),
-        );
-      }
-      return acc;
-    },
-    [],
-  );
-
-  // Remove duplicates
-  const seen = new Set<number>();
-  const uniqueSpices = [...directSpices, ...nestedSpices].filter((spice) => {
-    if (seen.has(spice.id)) {
-      return false;
-    }
-    seen.add(spice.id);
-    return true;
+  const directSpices = blend.spices.flatMap((id) => {
+    const spice = spiceListMapByID.get(id);
+    return spice ? [spice] : [];
   });
 
-  return uniqueSpices;
+  const nestedSpices: Spice[] = [];
+
+  for (const childBlendId of blend.blends) {
+    const childBlend = blendListMapByID.get(childBlendId);
+    if (childBlend) {
+      nestedSpices.push(
+        ...getAllSpicesFromBlend(
+          childBlend,
+          blendListMapByID,
+          spiceListMapByID,
+          visited,
+        ),
+      );
+    }
+  }
+
+  const uniqueSpicesMap = new Map<number, Spice>();
+  [...directSpices, ...nestedSpices].forEach((spice) => {
+    if (!uniqueSpicesMap.has(spice.id)) {
+      uniqueSpicesMap.set(spice.id, spice);
+    }
+  });
+  return Array.from(uniqueSpicesMap.values());
 };
 
 const BlendDetailPage = () => {
@@ -93,10 +92,21 @@ const BlendDetailPage = () => {
   const allSpices = useMemo(() => {
     if (!blend || !blendList.length || !spiceList.length) return [];
 
-    return getAllSpicesFromBlend(blend, blendList, spiceList);
+    const spiceListMapByID = new Map(
+      spiceList.map((spice) => [spice.id, spice]),
+    );
+    const blendListMapByID = new Map(
+      blendList.map((blend) => [blend.id, blend]),
+    );
+
+    return getAllSpicesFromBlend(blend, blendListMapByID, spiceListMapByID);
+    //  only run this when the blend, blendList, or spiceList updates
   }, [blend, blendList, spiceList]);
 
   const isLoading = loadingSpices || loadingBlends || loadingBlend;
+  const error = (spiceError || blendError || blendErrorById) as
+    | Error
+    | undefined;
 
   const directSpices = allSpices.filter((spice) =>
     blend?.spices.includes(spice.id),
@@ -107,10 +117,6 @@ const BlendDetailPage = () => {
   );
 
   if (isLoading) return <Loader />;
-
-  const error = (spiceError || blendError || blendErrorById) as
-    | Error
-    | undefined;
   if (error)
     return (
       <ErrorBanner
